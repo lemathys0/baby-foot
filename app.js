@@ -114,11 +114,12 @@ if (btnSignup && btnLogin) {
       window.location.href = 'index.html';
 
     } catch (err) {
-      // Gestion des erreurs Firebase
+      // Gestion des erreurs Firebase pour login
       let msg;
       switch (err.code) {
         case 'auth/user-not-found':
         case 'auth/wrong-password':
+        case 'auth/invalid-login-credentials':
           msg = "Email ou mot de passe incorrect.";
           break;
         case 'auth/invalid-email':
@@ -141,8 +142,8 @@ if (appDiv) {
     if (!user) return window.location.href = 'auth.html';
 
     // Affiche l’UI
-    appDiv.style.display   = 'block';
-    userEmailSpan.textContent = user.email;
+    appDiv.style.display       = 'block';
+    userEmailSpan.textContent  = user.email;
 
     // Initialisation de l’entrée en base si nouveau user
     const snap = await db.ref(`users/${user.uid}`).once('value');

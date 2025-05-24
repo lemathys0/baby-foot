@@ -2,17 +2,20 @@
 const firebaseConfig = {
   apiKey: "AIzaSyBN3DK2hoQvHg3DYnHGiHf3uDuf_zc0424",
   authDomain: "baby-foot-f0353.firebaseapp.com",
+  databaseURL: "https://baby-foot-f0353-default-rtdb.firebaseio.com",
   projectId: "baby-foot-f0353",
   storageBucket: "baby-foot-f0353.appspot.com",
   messagingSenderId: "490861743314",
-  appId: "1:490861743314:web=e4088571e39def10b",
-  measurementId: "G-5YCN1JFS"
+  appId: "1:490861743314:web:1568d43898909b807ef10b",
+  measurementId: "G-2C5C0PWGN3"
 };
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db   = firebase.database();
 
+//
 // Sélecteurs pour auth.html
+//
 const emailInput       = document.getElementById('email');
 const passwordInput    = document.getElementById('password');
 const displayNameInput = document.getElementById('displayName');
@@ -20,7 +23,9 @@ const btnSignup        = document.getElementById('btnSignup');
 const btnLogin         = document.getElementById('btnLogin');
 const authMessage      = document.getElementById('authMessage');
 
+//
 // Sélecteurs pour index.html
+//
 const appDiv            = document.getElementById('appDiv');
 const userNameSpan      = document.getElementById('userName');
 const btnLogout         = document.getElementById('btnLogout');
@@ -29,9 +34,9 @@ const btnAddFriend      = document.getElementById('btnAddFriend');
 const friendMessage     = document.getElementById('friendMessage');
 const friendsList       = document.getElementById('friendsList');
 
-// -------------------------------
+//
 // 1) Page auth.html : inscription / connexion
-// -------------------------------
+//
 if (btnSignup && btnLogin) {
   // Inscription
   btnSignup.onclick = async () => {
@@ -58,13 +63,13 @@ if (btnSignup && btnLogin) {
     }
 
     try {
-      // 1) Création du compte
+      // Création du compte
       const { user } = await auth.createUserWithEmailAndPassword(email, password);
 
-      // 2) Mettre à jour le profil Auth avec le pseudo
+      // Mettre à jour le profil Auth
       await user.updateProfile({ displayName });
 
-      // 3) Stockage du profil en base
+      // Stockage du profil en base
       await db.ref(`users/${user.uid}`).set({
         email,
         displayName,
@@ -94,7 +99,7 @@ if (btnSignup && btnLogin) {
         default:
           msg = err.message;
       }
-      authMessage.style.color = err.code === 'auth/email-already-in-use' ? "orange" : "red";
+      authMessage.style.color = (err.code === 'auth/email-already-in-use') ? "orange" : "red";
       authMessage.textContent = msg;
     }
   };
@@ -105,6 +110,7 @@ if (btnSignup && btnLogin) {
     const email    = emailInput.value.trim();
     const password = passwordInput.value.trim();
 
+    // Validation client
     if (!email || !password) {
       authMessage.style.color = "red";
       authMessage.textContent = "Tous les champs sont obligatoires.";
@@ -119,6 +125,7 @@ if (btnSignup && btnLogin) {
     try {
       await auth.signInWithEmailAndPassword(email, password);
       window.location.href = 'index.html';
+
     } catch (err) {
       let msg;
       switch (err.code) {
@@ -142,28 +149,30 @@ if (btnSignup && btnLogin) {
   };
 }
 
-// -------------------------------
+//
 // 2) Page index.html : accueil & amis
-// -------------------------------
+//
 if (appDiv) {
   auth.onAuthStateChanged(async user => {
     if (!user) return window.location.href = 'auth.html';
 
-    // Affichage UI
+    // Afficher UI
     appDiv.style.display = 'block';
 
-    // On récupère le pseudo depuis Auth ou DB
+    // Récupérer le pseudo
     const displayName = user.displayName
       || (await db.ref(`users/${user.uid}/displayName`).once('value')).val()
       || user.email.split('@')[0];
     userNameSpan.textContent = displayName;
 
-    // Écoute liste d’amis
+    // Écouter la liste d’amis
     listenFriends(user.uid);
   });
 
   // Déconnexion
-  btnLogout.onclick = () => auth.signOut().then(() => window.location.href = 'auth.html');
+  btnLogout.onclick = () => {
+    auth.signOut().then(() => window.location.href = 'auth.html');
+  };
 
   // Ajout d’un ami par pseudo
   btnAddFriend.onclick = async () => {
@@ -176,7 +185,6 @@ if (appDiv) {
     }
 
     try {
-      // Recherche en base par displayName
       const usersSnap = await db.ref('users')
         .orderByChild('displayName')
         .equalTo(pseudo)
@@ -198,7 +206,6 @@ if (appDiv) {
         return;
       }
 
-      // Mise à jour bilatérale
       const updates = {};
       updates[`users/${meUid}/friends/${friendUid}`] = true;
       updates[`users/${friendUid}/friends/${meUid}`] = true;
@@ -221,7 +228,7 @@ if (appDiv) {
       const list = snap.val() || {};
       for (const fid in list) {
         const name = (await db.ref(`users/${fid}/displayName`).once('value')).val();
-        const li = document.createElement('li');
+        const li   = document.createElement('li');
         li.textContent = name;
         friendsList.appendChild(li);
       }

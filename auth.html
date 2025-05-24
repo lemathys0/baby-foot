@@ -8,13 +8,13 @@
 <body>
   <h1>Connexion / Inscription</h1>
 
-  <label for="email">Email :</label>
+  <label>Email :</label>
   <input id="email" type="email" placeholder="exemple@mail.com"/>
 
-  <label for="password">Mot de passe :</label>
+  <label>Mot de passe :</label>
   <input id="password" type="password" placeholder="Mot de passe"/>
 
-  <label for="displayName">Pseudo :</label>
+  <label>Pseudo :</label>
   <input id="displayName" type="text" placeholder="Ton pseudo"/>
 
   <button id="btnSignup">S'inscrire</button>
@@ -22,11 +22,9 @@
 
   <div id="authMessage"></div>
 
-  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-  <!-- Ton script d’app logic -->
   <script src="app.js"></script>
 </body>
 </html>

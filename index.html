@@ -6,29 +6,23 @@
   <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-  <div id="appDiv" style="display:none;">
-    <h1>Bienvenue sur Baby-foot</h1>
-    <p>Connecté en tant que : <strong><span id="userName"></span></strong></p>
+  <div id="appDiv" style="display: none;">
+    <h1>Bienvenue</h1>
+    <p>Connecté en tant que : <span id="userPseudo"></span> (<span id="userEmail"></span>)</p>
     <button id="btnLogout">Déconnexion</button>
 
-    <section>
-      <h2>Ajouter un ami</h2>
-      <input id="friendNameInput" type="text" placeholder="Pseudo de l'ami"/>
-      <button id="btnAddFriend">Ajouter</button>
-      <div id="friendMessage"></div>
-    </section>
+    <h2>Ajouter un ami</h2>
+    <input type="text" id="friendPseudoInput" placeholder="Pseudo de l'ami"/>
+    <button id="addFriendBtn">Ajouter</button>
+    <div id="addFriendMessage"></div>
 
-    <section>
-      <h2>Liste d’amis</h2>
-      <ul id="friendsList"></ul>
-    </section>
+    <h2>Liste d'amis</h2>
+    <ul id="friendsList"></ul>
   </div>
 
-  <!-- Firebase SDKs -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
-  <!-- Logique de l’app -->
   <script src="app.js"></script>
 </body>
 </html>

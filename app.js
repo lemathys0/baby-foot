@@ -1,3 +1,4 @@
+// --- Config Firebase ---
 const firebaseConfig = {
   apiKey: "AIzaSyBN3DK2hoQvHg3DYnHGiHf3uDuf_zc0424",
   authDomain: "baby-foot-f0353.firebaseapp.com",
@@ -7,94 +8,105 @@ const firebaseConfig = {
   appId: "1:490861743314:web:e4088571e39def7a7ef10b",
   measurementId: "G-5YCN1JFS"
 };
-
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
-const database = firebase.database();
+const db   = firebase.database();
 
-let currentUser = null;
+// Sélecteurs pour **auth.html**
+const emailInput       = document.getElementById('email');
+const passwordInput    = document.getElementById('password');
+const displayNameInput = document.getElementById('displayName');
+const btnSignup        = document.getElementById('btnSignup');
+const btnLogin         = document.getElementById('btnLogin');
+const authMessage      = document.getElementById('authMessage');
 
-const authMessage = document.getElementById("authMessage");
-const emailInput = document.getElementById("email");
-const passwordInput = document.getElementById("password");
-const btnSignup = document.getElementById("btnSignup");
-const btnLogin = document.getElementById("btnLogin");
-const userEmailSpan = document.getElementById("userEmail");
-const friendsList = document.getElementById("friendsList");
+// Sélecteurs pour **index.html**
+const appDiv        = document.getElementById('appDiv');
+const userEmailSpan = document.getElementById('userEmail');
+const btnLogout     = document.getElementById('btnLogout');
+const friendsList   = document.getElementById('friendsList');
 
-auth.onAuthStateChanged(async user => {
-  if (user) {
-    currentUser = user;
-    if (userEmailSpan) userEmailSpan.textContent = user.email;
-
-    const userRef = database.ref(`users/${user.uid}`);
-    const userSnap = await userRef.once('value');
-    if (!userSnap.exists()) {
-      await userRef.set({ email: user.email, createdAt: Date.now(), friends: {} });
-    }
-
-    if (friendsList) loadFriends();
-    if (window.location.pathname.endsWith("auth.html")) {
-      window.location.href = "index.html";
-    }
-  } else {
-    currentUser = null;
-    if (userEmailSpan) userEmailSpan.textContent = "";
-    if (friendsList) friendsList.innerHTML = "";
-    if (window.location.pathname.endsWith("index.html")) {
-      window.location.href = "auth.html";
-    }
-  }
-});
-
-function loadFriends() {
-  const ref = database.ref(`users/${currentUser.uid}/friends`);
-  ref.once("value", snapshot => {
-    friendsList.innerHTML = "";
-    snapshot.forEach(child => {
-      const li = document.createElement("li");
-      li.textContent = child.val().name || "Ami";
-      friendsList.appendChild(li);
-    });
-  });
-}
-
-if (btnSignup) {
-  btnSignup.onclick = () => {
+// 1) Page auth.html : inscription / connexion
+if (btnSignup && btnLogin) {
+  // Inscription
+  btnSignup.onclick = async () => {
     authMessage.textContent = "";
-    const email = emailInput.value.trim();
+    const email       = emailInput.value.trim();
+    const password    = passwordInput.value.trim();
+    const displayName = displayNameInput.value.trim();
+    if (!email || !password || !displayName) {
+      authMessage.style.color = "red";
+      authMessage.textContent = "Merci de remplir tous les champs.";
+      return;
+    }
+    try {
+      const { user } = await auth.createUserWithEmailAndPassword(email, password);
+      await db.ref(`users/${user.uid}`).set({
+        email, displayName, createdAt: Date.now(), friends: {}
+      });
+      authMessage.style.color = "green";
+      authMessage.textContent = "Inscription réussie ! Redirection...";
+      setTimeout(() => window.location.href = 'index.html', 1000);
+    } catch (e) {
+      authMessage.style.color = "red";
+      authMessage.textContent = e.message;
+    }
+  };
+
+  // Connexion
+  btnLogin.onclick = async () => {
+    authMessage.textContent = "";
+    const email    = emailInput.value.trim();
     const password = passwordInput.value.trim();
     if (!email || !password) {
       authMessage.style.color = "red";
-      authMessage.textContent = "Email et mot de passe requis.";
+      authMessage.textContent = "Merci de remplir tous les champs.";
       return;
     }
-    auth.createUserWithEmailAndPassword(email, password)
-      .then(() => {
-        authMessage.style.color = "green";
-        authMessage.textContent = "Inscription réussie !";
-      })
-      .catch(err => {
-        authMessage.style.color = "red";
-        authMessage.textContent = "Erreur: " + err.message;
-      });
+    try {
+      await auth.signInWithEmailAndPassword(email, password);
+      window.location.href = 'index.html';
+    } catch (e) {
+      authMessage.style.color = "red";
+      authMessage.textContent = e.message;
+    }
   };
 }
 
-if (btnLogin) {
-  btnLogin.onclick = () => {
-    authMessage.textContent = "";
-    const email = emailInput.value.trim();
-    const password = passwordInput.value.trim();
-    if (!email || !password) {
-      authMessage.style.color = "red";
-      authMessage.textContent = "Email et mot de passe requis.";
-      return;
-    }
-    auth.signInWithEmailAndPassword(email, password)
-      .catch(err => {
-        authMessage.style.color = "red";
-        authMessage.textContent = "Erreur: " + err.message;
+// 2) Page index.html : accueil
+if (appDiv) {
+  auth.onAuthStateChanged(async user => {
+    if (!user) return window.location.href = 'auth.html';
+    // Affiche et renseigne email
+    appDiv.style.display = 'block';
+    userEmailSpan.textContent = user.email;
+
+    // Crée l'entrée si nouvelle session
+    const snap = await db.ref(`users/${user.uid}`).once('value');
+    if (!snap.exists()) {
+      await db.ref(`users/${user.uid}`).set({
+        email: user.email,
+        displayName: user.email.split('@')[0],
+        createdAt: Date.now(),
+        friends: {}
       });
+    }
+    // Charge la liste d’amis
+    db.ref(`users/${user.uid}/friends`).on('value', s => {
+      friendsList.innerHTML = '';
+      const f = s.val() || {};
+      Object.keys(f).forEach(fid => {
+        db.ref(`users/${fid}/displayName`).once('value').then(nSnap => {
+          const li = document.createElement('li');
+          li.textContent = nSnap.val();
+          friendsList.appendChild(li);
+        });
+      });
+    });
+  });
+
+  // Bouton déconnexion
+  btnLogout.onclick = () => {
+    auth.signOut().then(() => window.location.href = 'auth.html');
   };
 }

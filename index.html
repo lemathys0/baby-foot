@@ -1,14 +1,17 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8"/>
   <title>Accueil - Baby-foot</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-  <div id="app">
+  <div id="appDiv" style="display:none;">
     <h1>Bienvenue sur Baby-foot</h1>
-    <p>Connecté en tant que : <span id="userEmail"></span></p>
+    <p>Connecté en tant que : <strong><span id="userEmail"></span></strong></p>
+    <button id="btnLogout">Déconnexion</button>
+
+    <h2>Liste d’amis</h2>
     <ul id="friendsList"></ul>
   </div>
 

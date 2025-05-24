@@ -1,158 +1,121 @@
+// Config Firebase (même config que game.js)
 const firebaseConfig = {
   apiKey: "AIzaSyBN3DK2hoQvHg3DYnHGiHf3uDuf_zc0424",
   authDomain: "baby-foot-f0353.firebaseapp.com",
-  databaseURL: "https://baby-foot-f0353-default-rtdb.firebaseio.com",
   projectId: "baby-foot-f0353",
   storageBucket: "baby-foot-f0353.appspot.com",
   messagingSenderId: "490861743314",
-  appId: "1:490861743314:web:1568d43898909b807ef10b",
-  measurementId: "G-2C5C0PWGN3"
+  appId: "1:490861743314:web:e4088571e39def7a7ef10b",
+  measurementId: "G-5YCN1JFS"
 };
 firebase.initializeApp(firebaseConfig);
-
-const auth = firebase.auth();
 const db = firebase.database();
 
-// Sélecteurs communs
-const emailInput       = document.getElementById('email');
-const passwordInput    = document.getElementById('password');
-const displayNameInput = document.getElementById('displayName');
-const btnSignup        = document.getElementById('btnSignup');
-const btnLogin         = document.getElementById('btnLogin');
-const authMessage      = document.getElementById('authMessage');
+const appDiv = document.getElementById('appDiv');
+const userPseudoSpan = document.getElementById('userPseudo');
+const userEmailSpan = document.getElementById('userEmail');
+const btnLogout = document.getElementById('btnLogout');
+const friendInput = document.getElementById('friendPseudoInput');
+const addFriendBtn = document.getElementById('addFriendBtn');
+const addFriendMessage = document.getElementById('addFriendMessage');
+const friendsList = document.getElementById('friendsList');
+const btnPlayGame = document.getElementById('btnPlayGame');
 
-// index.html
-const appDiv          = document.getElementById('appDiv');
-const userEmailSpan   = document.getElementById('userEmail');
-const userPseudoSpan  = document.getElementById('userPseudo');
-const btnLogout       = document.getElementById('btnLogout');
-const friendsList     = document.getElementById('friendsList');
-const friendInput     = document.getElementById('friendPseudoInput');
-const addFriendBtn    = document.getElementById('addFriendBtn');
-const addFriendMsg    = document.getElementById('addFriendMessage');
+let currentUser = null;
+let friends = {}; // clé = uid, valeur = {pseudo, email}
 
-// INSCRIPTION
-if (btnSignup) {
-  btnSignup.onclick = async () => {
-    authMessage.textContent = "";
-    const email = emailInput.value.trim();
-    const password = passwordInput.value.trim();
-    const displayName = displayNameInput.value.trim();
-
-    if (!email || !password || !displayName) {
-      authMessage.style.color = "red";
-      authMessage.textContent = "Tous les champs sont requis.";
-      return;
-    }
-
-    try {
-      const { user } = await auth.createUserWithEmailAndPassword(email, password);
-      await db.ref(`users/${user.uid}`).set({
-        email, displayName, createdAt: Date.now(), friends: {}
-      });
-      authMessage.style.color = "green";
-      authMessage.textContent = "Inscription réussie. Redirection...";
-      setTimeout(() => window.location.href = 'index.html', 1000);
-    } catch (err) {
-      let msg = "Erreur inconnue.";
-      if (err.code === "auth/email-already-in-use") msg = "Email déjà utilisé.";
-      if (err.code === "auth/invalid-email") msg = "Email invalide.";
-      if (err.code === "auth/weak-password") msg = "Mot de passe trop faible.";
-      authMessage.style.color = "red";
-      authMessage.textContent = msg;
-    }
-  };
-}
-
-// CONNEXION
-if (btnLogin) {
-  btnLogin.onclick = async () => {
-    authMessage.textContent = "";
-    const email = emailInput.value.trim();
-    const password = passwordInput.value.trim();
-
-    if (!email || !password) {
-      authMessage.style.color = "red";
-      authMessage.textContent = "Remplis tous les champs.";
-      return;
-    }
-
-    try {
-      await auth.signInWithEmailAndPassword(email, password);
-      window.location.href = 'index.html';
-    } catch (err) {
-      let msg = "Erreur de connexion.";
-      if (err.code === "auth/user-not-found" || err.code === "auth/wrong-password") {
-        msg = "Email ou mot de passe incorrect.";
-      }
-      authMessage.style.color = "red";
-      authMessage.textContent = msg;
-    }
-  };
-}
-
-// PAGE INDEX.HTML
-if (appDiv) {
-  auth.onAuthStateChanged(async user => {
-    if (!user) return location.href = 'auth.html';
-    appDiv.style.display = "block";
-
-    const userSnap = await db.ref(`users/${user.uid}`).once('value');
-    const userData = userSnap.val();
-    userEmailSpan.textContent = user.email;
-    userPseudoSpan.textContent = userData.displayName;
-
-    // Ajout d'amis
-    if (addFriendBtn) {
-      addFriendBtn.onclick = async () => {
-        const pseudo = friendInput.value.trim();
-        addFriendMsg.textContent = "";
-        if (!pseudo) return addFriendMsg.textContent = "Pseudo requis.";
-
-        const usersSnap = await db.ref(`users`).once('value');
-        let foundUid = null;
-
-        usersSnap.forEach(child => {
-          if (child.val().displayName.toLowerCase() === pseudo.toLowerCase()) {
-            foundUid = child.key;
-          }
-        });
-
-        if (!foundUid) {
-          addFriendMsg.textContent = "Utilisateur introuvable.";
-          return;
-        }
-
-        if (foundUid === user.uid) {
-          addFriendMsg.textContent = "Tu ne peux pas t’ajouter toi-même.";
-          return;
-        }
-
-        await db.ref(`users/${user.uid}/friends/${foundUid}`).set(true);
-        addFriendMsg.style.color = "green";
-        addFriendMsg.textContent = "Ami ajouté !";
-        friendInput.value = '';
-      };
-    }
-
-    // Liste des amis
-    db.ref(`users/${user.uid}/friends`).on('value', snap => {
-      friendsList.innerHTML = '';
-      const friends = snap.val() || {};
-      Object.keys(friends).forEach(friendId => {
-        db.ref(`users/${friendId}/displayName`).once('value').then(nameSnap => {
-          const li = document.createElement('li');
-          li.textContent = nameSnap.val();
-          friendsList.appendChild(li);
-        });
-      });
-    });
-  });
-
-  // Déconnexion
-  if (btnLogout) {
-    btnLogout.onclick = () => {
-      auth.signOut().then(() => location.href = 'auth.html');
-    };
+// Vérification connexion
+firebase.auth().onAuthStateChanged(user => {
+  if (!user) {
+    // Pas connecté, rediriger vers auth (à créer)
+    window.location.href = 'auth.html';
+    return;
   }
+  currentUser = user;
+  userPseudoSpan.textContent = user.displayName || 'Utilisateur';
+  userEmailSpan.textContent = user.email || '';
+  appDiv.style.display = 'block';
+  loadFriends();
+});
+
+// Déconnexion
+btnLogout.onclick = () => {
+  firebase.auth().signOut();
+};
+
+// Charger liste amis depuis Firebase
+function loadFriends() {
+  // Stocker liste amis sous /users/{uid}/friends/{friendUid}: true
+  db.ref(`users/${currentUser.uid}/friends`).on('value', snapshot => {
+    const friendUids = snapshot.val() || {};
+    friends = {};
+    friendsList.innerHTML = '';
+    const promises = [];
+    for (const friendUid in friendUids) {
+      // Charger infos ami
+      promises.push(db.ref(`users/${friendUid}`).once('value').then(snap => {
+        const data = snap.val();
+        if (data) {
+          friends[friendUid] = { pseudo: data.pseudo || 'Inconnu', email: data.email || '' };
+          const li = document.createElement('li');
+          li.textContent = `${friends[friendUid].pseudo} (${friends[friendUid].email})`;
+          friendsList.appendChild(li);
+        }
+      }));
+    }
+    return Promise.all(promises);
+  });
 }
+
+// Ajouter un ami par pseudo
+addFriendBtn.onclick = () => {
+  const pseudo = friendInput.value.trim();
+  if (!pseudo) return alert("Entrez un pseudo valide");
+
+  addFriendMessage.textContent = "Recherche en cours...";
+  // Recherche user avec ce pseudo
+  db.ref('users').orderByChild('pseudo').equalTo(pseudo).once('value').then(snapshot => {
+    const users = snapshot.val();
+    if (!users) {
+      addFriendMessage.textContent = "Utilisateur introuvable.";
+      return;
+    }
+    const friendUid = Object.keys(users)[0];
+    if (friendUid === currentUser.uid) {
+      addFriendMessage.textContent = "Vous ne pouvez pas vous ajouter vous-même.";
+      return;
+    }
+
+    // Ajouter ami sous /users/{currentUser}/friends/{friendUid}
+    db.ref(`users/${currentUser.uid}/friends/${friendUid}`).set(true)
+      .then(() => {
+        addFriendMessage.textContent = `Ami "${pseudo}" ajouté !`;
+        friendInput.value = '';
+      })
+      .catch(err => {
+        addFriendMessage.textContent = "Erreur ajout ami : " + err.message;
+      });
+  });
+};
+
+// Bouton jouer : création room + redirection vers game.html
+btnPlayGame.onclick = () => {
+  const friendUids = Object.keys(friends);
+  if (friendUids.length === 0) {
+    alert("Ajoutez au moins un ami pour jouer.");
+    return;
+  }
+  const friendUid = friendUids[0]; // Prends le premier ami (à améliorer)
+
+  // Crée un id de room unique (ordre trié des UIDs)
+  const players = [currentUser.uid, friendUid].sort();
+  const roomId = `room_${players[0]}_${players[1]}`;
+
+  // Optionnel : créer la room dans la BDD (vide, juste pour init)
+  db.ref(`gameRooms/${roomId}`).set({
+    players,
+    createdAt: Date.now()
+  }).then(() => {
+    window.location.href = `game.html?room=${roomId}`;
+  });
+};

@@ -58,13 +58,20 @@ if (btnSignup && btnLogin) {
     }
 
     try {
+      // 1) Création du compte
       const { user } = await auth.createUserWithEmailAndPassword(email, password);
+
+      // 2) Mettre à jour le profil Auth avec le pseudo
+      await user.updateProfile({ displayName });
+
+      // 3) Stockage du profil en base
       await db.ref(`users/${user.uid}`).set({
         email,
         displayName,
         createdAt: Date.now(),
         friends: {}
       });
+
       authMessage.style.color = "green";
       authMessage.textContent = "Inscription réussie ! Redirection…";
       setTimeout(() => window.location.href = 'index.html', 1000);
@@ -112,7 +119,6 @@ if (btnSignup && btnLogin) {
     try {
       await auth.signInWithEmailAndPassword(email, password);
       window.location.href = 'index.html';
-
     } catch (err) {
       let msg;
       switch (err.code) {
@@ -143,20 +149,23 @@ if (appDiv) {
   auth.onAuthStateChanged(async user => {
     if (!user) return window.location.href = 'auth.html';
 
-    // Afficher UI et pseudo
-    appDiv.style.display  = 'block';
-    const userSnap        = await db.ref(`users/${user.uid}`).once('value');
-    const me              = userSnap.val();
-    userNameSpan.textContent = me.displayName;
+    // Affichage UI
+    appDiv.style.display = 'block';
 
-    // Charger et écouter la liste d’amis
+    // On récupère le pseudo depuis Auth ou DB
+    const displayName = user.displayName
+      || (await db.ref(`users/${user.uid}/displayName`).once('value')).val()
+      || user.email.split('@')[0];
+    userNameSpan.textContent = displayName;
+
+    // Écoute liste d’amis
     listenFriends(user.uid);
   });
 
   // Déconnexion
   btnLogout.onclick = () => auth.signOut().then(() => window.location.href = 'auth.html');
 
-  // Ajout d’un ami
+  // Ajout d’un ami par pseudo
   btnAddFriend.onclick = async () => {
     friendMessage.textContent = "";
     const pseudo = friendNameInput.value.trim();
@@ -167,7 +176,7 @@ if (appDiv) {
     }
 
     try {
-      // Recherche par displayName
+      // Recherche en base par displayName
       const usersSnap = await db.ref('users')
         .orderByChild('displayName')
         .equalTo(pseudo)
@@ -210,11 +219,9 @@ if (appDiv) {
     db.ref(`users/${uid}/friends`).on('value', async snap => {
       friendsList.innerHTML = "";
       const list = snap.val() || {};
-
       for (const fid in list) {
-        const fSnap = await db.ref(`users/${fid}/displayName`).once('value');
-        const name = fSnap.val();
-        const li   = document.createElement('li');
+        const name = (await db.ref(`users/${fid}/displayName`).once('value')).val();
+        const li = document.createElement('li');
         li.textContent = name;
         friendsList.appendChild(li);
       }

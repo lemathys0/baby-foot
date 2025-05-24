@@ -5,7 +5,7 @@ const firebaseConfig = {
   projectId: "baby-foot-f0353",
   storageBucket: "baby-foot-f0353.appspot.com",
   messagingSenderId: "490861743314",
-  appId: "1:490861743314:web:e4088571e39def10b",
+  appId: "1:490861743314:web=e4088571e39def10b",
   measurementId: "G-5YCN1JFS"
 };
 firebase.initializeApp(firebaseConfig);
@@ -21,10 +21,13 @@ const btnLogin         = document.getElementById('btnLogin');
 const authMessage      = document.getElementById('authMessage');
 
 // Sélecteurs pour index.html
-const appDiv        = document.getElementById('appDiv');
-const userEmailSpan = document.getElementById('userEmail');
-const btnLogout     = document.getElementById('btnLogout');
-const friendsList   = document.getElementById('friendsList');
+const appDiv            = document.getElementById('appDiv');
+const userNameSpan      = document.getElementById('userName');
+const btnLogout         = document.getElementById('btnLogout');
+const friendNameInput   = document.getElementById('friendNameInput');
+const btnAddFriend      = document.getElementById('btnAddFriend');
+const friendMessage     = document.getElementById('friendMessage');
+const friendsList       = document.getElementById('friendsList');
 
 // -------------------------------
 // 1) Page auth.html : inscription / connexion
@@ -37,7 +40,7 @@ if (btnSignup && btnLogin) {
     const password    = passwordInput.value.trim();
     const displayName = displayNameInput.value.trim();
 
-    // Validation côté client
+    // Validation client
     if (!email || !password || !displayName) {
       authMessage.style.color = "red";
       authMessage.textContent = "Tous les champs sont obligatoires.";
@@ -55,23 +58,18 @@ if (btnSignup && btnLogin) {
     }
 
     try {
-      // Création du compte + connexion auto
       const { user } = await auth.createUserWithEmailAndPassword(email, password);
-
-      // Stockage du profil
       await db.ref(`users/${user.uid}`).set({
         email,
         displayName,
         createdAt: Date.now(),
         friends: {}
       });
-
       authMessage.style.color = "green";
       authMessage.textContent = "Inscription réussie ! Redirection…";
       setTimeout(() => window.location.href = 'index.html', 1000);
 
     } catch (err) {
-      // Gestion des erreurs Firebase
       let msg;
       switch (err.code) {
         case 'auth/email-already-in-use':
@@ -100,7 +98,6 @@ if (btnSignup && btnLogin) {
     const email    = emailInput.value.trim();
     const password = passwordInput.value.trim();
 
-    // Validation côté client
     if (!email || !password) {
       authMessage.style.color = "red";
       authMessage.textContent = "Tous les champs sont obligatoires.";
@@ -117,7 +114,6 @@ if (btnSignup && btnLogin) {
       window.location.href = 'index.html';
 
     } catch (err) {
-      // Gestion des erreurs Firebase pour login
       let msg;
       switch (err.code) {
         case 'auth/user-not-found':
@@ -141,43 +137,87 @@ if (btnSignup && btnLogin) {
 }
 
 // -------------------------------
-// 2) Page index.html : accueil
+// 2) Page index.html : accueil & amis
 // -------------------------------
 if (appDiv) {
   auth.onAuthStateChanged(async user => {
     if (!user) return window.location.href = 'auth.html';
 
-    // Affiche l’UI
-    appDiv.style.display       = 'block';
-    userEmailSpan.textContent  = user.email;
+    // Afficher UI et pseudo
+    appDiv.style.display  = 'block';
+    const userSnap        = await db.ref(`users/${user.uid}`).once('value');
+    const me              = userSnap.val();
+    userNameSpan.textContent = me.displayName;
 
-    // Initialisation de l’entrée en base si nouveau user
-    const snap = await db.ref(`users/${user.uid}`).once('value');
-    if (!snap.exists()) {
-      await db.ref(`users/${user.uid}`).set({
-        email: user.email,
-        displayName: user.email.split('@')[0],
-        createdAt: Date.now(),
-        friends: {}
-      });
-    }
-
-    // Chargement de la liste d’amis
-    db.ref(`users/${user.uid}/friends`).on('value', s => {
-      friendsList.innerHTML = '';
-      const f = s.val() || {};
-      Object.keys(f).forEach(fid => {
-        db.ref(`users/${fid}/displayName`).once('value').then(nSnap => {
-          const li = document.createElement('li');
-          li.textContent = nSnap.val();
-          friendsList.appendChild(li);
-        });
-      });
-    });
+    // Charger et écouter la liste d’amis
+    listenFriends(user.uid);
   });
 
   // Déconnexion
-  btnLogout.onclick = () => {
-    auth.signOut().then(() => window.location.href = 'auth.html');
+  btnLogout.onclick = () => auth.signOut().then(() => window.location.href = 'auth.html');
+
+  // Ajout d’un ami
+  btnAddFriend.onclick = async () => {
+    friendMessage.textContent = "";
+    const pseudo = friendNameInput.value.trim();
+    if (!pseudo) {
+      friendMessage.style.color = "red";
+      friendMessage.textContent = "Saisis un pseudo valide.";
+      return;
+    }
+
+    try {
+      // Recherche par displayName
+      const usersSnap = await db.ref('users')
+        .orderByChild('displayName')
+        .equalTo(pseudo)
+        .once('value');
+
+      if (!usersSnap.exists()) {
+        friendMessage.style.color = "red";
+        friendMessage.textContent = `Aucun utilisateur "${pseudo}".`;
+        return;
+      }
+
+      let friendUid;
+      usersSnap.forEach(child => friendUid = child.key);
+
+      const meUid = auth.currentUser.uid;
+      if (friendUid === meUid) {
+        friendMessage.style.color = "red";
+        friendMessage.textContent = "Tu ne peux pas t'ajouter toi-même.";
+        return;
+      }
+
+      // Mise à jour bilatérale
+      const updates = {};
+      updates[`users/${meUid}/friends/${friendUid}`] = true;
+      updates[`users/${friendUid}/friends/${meUid}`] = true;
+      await db.ref().update(updates);
+
+      friendMessage.style.color = "green";
+      friendMessage.textContent = `${pseudo} ajouté(e) !`;
+      friendNameInput.value = "";
+
+    } catch (err) {
+      friendMessage.style.color = "red";
+      friendMessage.textContent = "Erreur : " + err.message;
+    }
   };
+
+  // Fonction d’écoute de la liste d’amis
+  function listenFriends(uid) {
+    db.ref(`users/${uid}/friends`).on('value', async snap => {
+      friendsList.innerHTML = "";
+      const list = snap.val() || {};
+
+      for (const fid in list) {
+        const fSnap = await db.ref(`users/${fid}/displayName`).once('value');
+        const name = fSnap.val();
+        const li   = document.createElement('li');
+        li.textContent = name;
+        friendsList.appendChild(li);
+      }
+    });
+  }
 }

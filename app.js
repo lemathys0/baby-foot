@@ -5,7 +5,7 @@ const firebaseConfig = {
   projectId: "baby-foot-f0353",
   storageBucket: "baby-foot-f0353.appspot.com",
   messagingSenderId: "490861743314",
-  appId: "1:490861743314:web:e4088571e39def7a7ef10b",
+  appId: "1:490861743314:web:e4088571e39def10b",
   measurementId: "G-5YCN1JFS"
 };
 firebase.initializeApp(firebaseConfig);
@@ -83,6 +83,9 @@ if (btnSignup && btnLogin) {
         case 'auth/weak-password':
           msg = "Mot de passe trop faible (6 caractères min.).";
           break;
+        case 'auth/too-many-requests':
+          msg = "Trop de tentatives. Réessayez plus tard.";
+          break;
         default:
           msg = err.message;
       }
@@ -124,6 +127,9 @@ if (btnSignup && btnLogin) {
           break;
         case 'auth/invalid-email':
           msg = "Adresse email non valide.";
+          break;
+        case 'auth/too-many-requests':
+          msg = "Trop de tentatives. Réessayez plus tard.";
           break;
         default:
           msg = err.message;
